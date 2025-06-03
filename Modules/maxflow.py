@@ -104,7 +104,7 @@ class MaxFlowPipeline:
         for x, y, a, b in conditions:
             c1 = t1 * self.M + x
             c2 = t2 * self.M + y
-            if c1 == id1 and c2 == id2 and t1 <= a and b <= t2:
+            if c1 == id1 and c2 == id2 and ((t1 <= a and b <= t2) or (a <= t1 and t2 <= b)):
                 return True
         return False
 
