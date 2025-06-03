@@ -1,0 +1,34 @@
+solver_choice = 'network-simplex'
+started_nodes = []
+ID = []
+earliness = []
+tardiness = []
+filepath = ""
+H = 0
+d = 0
+num_max_agvs = 0
+numOfAGVs = 0
+count = 0
+reachingTargetAGVs = 0
+haltingAGVs = 0
+totalCost = 0
+#sfm = False
+functions_file = "functions.txt"
+totalSolving = 0
+timeSolving = 0
+level_of_simulation = 0 #0 - "Fully Random", 1 - "Random in the list", 2 - "SFM"
+test_automation = 0
+draw = 0
+M = 0
+print_output = False
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
