@@ -89,7 +89,7 @@ class ArtificialNodeInserter:
         gamma_input = input("Nhập gamma (cost vS→vT, mặc định = 1230919231): ")
         return int(gamma_input) if gamma_input.strip() else self.DEFAULT_GAMMA
 
-    def add_direct_edge_vs_to_vt(self, U, gamma):
+    def add_exit_edge_vs_to_vt(self, U, gamma):
         F = self.pipeline.max_flow_value
         edge = self.create_artificial_edge(self.vS, self.vT, self.DEFAULT_LOWER, max(F - U, 0), gamma)
         self.processor.ts_edges.append(edge)
@@ -131,7 +131,7 @@ class ArtificialNodeInserter:
 
     def run(self, U, gamma):
         self.add_artificial_source_sink_nodes()
-        self.add_direct_edge_vs_to_vt(U, gamma)
+        self.add_exit_edge_vs_to_vt(U, gamma)
         V = self.collect_omega_in_edges()
         self.insert_artificial_nodes_and_edges(V, U)
         self.write_to_dimacs_file()
