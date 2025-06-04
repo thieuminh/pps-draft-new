@@ -1,17 +1,17 @@
 from controller.NodeGenerator import ArtificialNode
 from model.Edge import ArtificialEdge
 
-class VirtualNodeInserter:
+class ArtificialNodeInserter:
     DEFAULT_LOWER = 0
     DEFAULT_UPPER = 1
     DEFAULT_GAMMA = 1230919231
 
-    def __init__(self, processor, vs_id=999001, vt_id=999002, start_virtual_id=999100):
+    def __init__(self, processor, vs_id=999001, vt_id=999002, start_artificial_id=999100):
         self.processor = processor
         self.pipeline = processor.pipeline
         self.vs_id = vs_id
         self.vt_id = vt_id
-        self.virtual_node_id = start_virtual_id
+        self.artificial_node_id = start_artificial_id
         self.vS = ArtificialNode(id=self.vs_id, label="vS")
         self.vT = ArtificialNode(id=self.vt_id, label="vT")
         self.edges_added = []
@@ -35,23 +35,23 @@ class VirtualNodeInserter:
                     return True
         return False
 
-    def create_virtual_nodes(self, idx):
-        node1 = ArtificialNode(id=self.virtual_node_id, label=f"virt_{idx}_1")
-        node2 = ArtificialNode(id=self.virtual_node_id + 1, label=f"virt_{idx}_2")
-        self.virtual_node_id += 2
+    def create_artificial_nodes(self, idx):
+        node1 = ArtificialNode(id=self.artificial_node_id, label=f"virt_{idx}_1")
+        node2 = ArtificialNode(id=self.artificial_node_id + 1, label=f"virt_{idx}_2")
+        self.artificial_node_id += 2
         self.processor.ts_nodes.extend([node1, node2])
         self.processor.graph.nodes[node1.id] = node1
         self.processor.graph.nodes[node2.id] = node2
         return node1, node2
 
-    def _add_virtual_edges(self, node1, node2, lower, upper, F, U):
-        edges_virtual = [
+    def _add_artificial_edges(self, node1, node2, lower, upper, F, U):
+        edges_artificial = [
             self.create_artificial_edge(self.vS, node1, lower, F - U, 0),
             self.create_artificial_edge(node1, node2, lower, upper, 0),
             self.create_artificial_edge(node2, self.vT, lower, F - U, 0)
         ]
-        self.processor.ts_edges.extend(edges_virtual)
-        self.edges_added.extend(edges_virtual)
+        self.processor.ts_edges.extend(edges_artificial)
+        self.edges_added.extend(edges_artificial)
     
     def _remove_and_replace_edge(self, u, v, node1, node2, lower, upper, cost):
         removed = self.remove_edge_by_id(u, v)
@@ -64,7 +64,7 @@ class VirtualNodeInserter:
         self.processor.ts_edges.extend(edges_replacement)
         self.edges_added.extend(edges_replacement)
 
-    def print_virtual_edges(self):
+    def print_artificial_edges(self):
         print("\n=== 📤 Danh sách các cung ảo đã được tạo ===")
         for edge in self.edges_added:
             u = edge.start_node.id
@@ -76,7 +76,7 @@ class VirtualNodeInserter:
         print(f"→ Tổng số cung ảo được thêm: {len(self.edges_added)}")
 
     # ==== Các hàm được gọi trong run() ====
-    def add_virtual_source_sink_nodes(self):
+    def add_artificial_source_sink_nodes(self):
         self.processor.ts_nodes.extend([self.vS, self.vT])
         self.processor.graph.nodes[self.vS.id] = self.vS
         self.processor.graph.nodes[self.vT.id] = self.vT
@@ -102,7 +102,7 @@ class VirtualNodeInserter:
         V = [edge for edge in omega_edges if edge.start_node.id in {n.id for n in omega_in}]
         return V
 
-    def insert_virtual_nodes_and_edges(self, V, U):
+    def insert_artificial_nodes_and_edges(self, V, U):
         F = self.pipeline.max_flow_value
         for idx, edge in enumerate(V):
             u, v = edge.start_node.id, edge.end_node.id
@@ -112,9 +112,9 @@ class VirtualNodeInserter:
             lower = getattr(orig_edge, 'lower', self.DEFAULT_LOWER) if orig_edge else self.DEFAULT_LOWER
             upper = getattr(orig_edge, 'upper', self.DEFAULT_UPPER) if orig_edge else self.DEFAULT_UPPER
 
-            node1, node2 = self.create_virtual_nodes(idx)
+            node1, node2 = self.create_artificial_nodes(idx)
 
-            self._add_virtual_edges(node1, node2, lower, upper, F, U)
+            self._add_artificial_edges(node1, node2, lower, upper, F, U)
             self._remove_and_replace_edge(u, v, node1, node2, lower, upper, cost)
 
     def write_to_dimacs_file(self, filename="TSG1.txt"):
@@ -130,8 +130,8 @@ class VirtualNodeInserter:
         print(f"✅ File {filename} đã được tạo thành công.")
 
     def run(self, U, gamma):
-        self.add_virtual_source_sink_nodes()
+        self.add_artificial_source_sink_nodes()
         self.add_direct_edge_vs_to_vt(U, gamma)
         V = self.collect_omega_in_edges()
-        self.insert_virtual_nodes_and_edges(V, U)
+        self.insert_artificial_nodes_and_edges(V, U)
         self.write_to_dimacs_file()

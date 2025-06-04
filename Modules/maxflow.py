@@ -63,7 +63,7 @@ class MaxFlowPipeline:
         print(f"✅ Đã ghi Omega(OUT).txt (có capacity) vào: {omega_out_path}")
 
     # --- Các hàm phụ trợ ---
-    def is_virtual_node(self, node):
+    def is_artificial_node(self, node):
         return isinstance(node, (ArtificialNode))
 
     def get_node_by_id(self, node_id):
@@ -96,7 +96,7 @@ class MaxFlowPipeline:
         node2 = self.get_node_by_id(id2)
         if not node1 or not node2:
             return None, None
-        if self.is_virtual_node(node1) or self.is_virtual_node(node2):
+        if self.is_artificial_node(node1) or self.is_artificial_node(node2):
             return None, None
         return node1, node2
 

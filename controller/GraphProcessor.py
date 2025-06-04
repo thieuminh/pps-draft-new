@@ -16,8 +16,8 @@ from collections import deque
 from scipy.sparse import lil_matrix
 from model.Graph import Graph #------
 from Modules.maxflow import MaxFlowPipeline
-from Modules.virtual_node_inserter import VirtualNodeInserter
-from Modules.user_input import get_maxflow_conditions, get_virtual_upper_bound, get_virtual_gamma
+from Modules.artificial_node_inserter import ArtificialNodeInserter
+from Modules.user_input import get_maxflow_conditions, get_artificial_upper_bound, get_artificial_gamma
 #------
 import config
 import pdb
@@ -458,7 +458,7 @@ class GraphProcessor(KickOffGenerator):
 
 
     def process_restrictions(self):
-        self.remove_virtual_nodes_and_edges()
+        self.remove_artificial_nodes_and_edges()
         """Xử lý các hạn chế trong đồ thị."""
         if self.restriction_controller is None:
             self.restriction_controller = RestrictionController(self)
@@ -476,25 +476,23 @@ class GraphProcessor(KickOffGenerator):
         self.update_edges(new_a)
         self.insert_halting_edges()
         self.write_to_file()
-        from Modules.maxflow import MaxFlowPipeline
-        from Modules.virtual_node_inserter import VirtualNodeInserter
-        from Modules.user_input import get_maxflow_conditions, get_virtual_upper_bound, get_virtual_gamma
+
 
         # Nhập input 
         conditions = get_maxflow_conditions()
-        U = get_virtual_upper_bound()
-        gamma = get_virtual_gamma()
+        U = get_artificial_upper_bound()
+        gamma = get_artificial_gamma()
 
         # Chạy MaxFlow
         self.pipeline = MaxFlowPipeline(self)
         F = self.pipeline.run_all(conditions)
         print(f"✅ Max Flow F = {F}, U = {U}")
 
-        # Nếu F > U thì mới chạy VirtualNodeInserter
+        # Nếu F > U thì mới chạy ArtificialNodeInserter
         if F > U:
             if self.graph is None:
                 self.graph = Graph(self)
-            inserter = VirtualNodeInserter(self)
+            inserter = ArtificialNodeInserter(self)
             inserter.run(U, gamma)
         else:
             print("Không cần chèn node/cung ảo vì F ≤ U.")
@@ -545,7 +543,7 @@ class GraphProcessor(KickOffGenerator):
         #pdb.set_trace()
         self.process_restrictions()
 
-    def remove_virtual_nodes_and_edges(self):
+    def remove_artificial_nodes_and_edges(self):
         # Remove ArtificialNode from ts_nodes
         self.ts_nodes = [node for node in self.ts_nodes if node.__class__.__name__ != "ArtificialNode"]
         # Remove ArtificialNode from graph.nodes

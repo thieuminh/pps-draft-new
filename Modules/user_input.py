@@ -14,10 +14,10 @@ def get_maxflow_conditions():
         conditions = [(1, 2, 3, 4)]
     return conditions
 
-def get_virtual_upper_bound():
+def get_artificial_upper_bound():
     U_input = input("Nhập U (upper bound mỗi nhánh phụ, mặc định = 1): ")
     return int(U_input) if U_input.strip() else 1
 
-def get_virtual_gamma():
+def get_artificial_gamma():
     gamma_input = input("Nhập gamma (cost vS→vT, mặc định = 1230919231): ")
     return int(gamma_input) if gamma_input.strip() else 1230919231
