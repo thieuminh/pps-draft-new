@@ -1,6 +1,10 @@
 from controller.NodeGenerator import ArtificialNode
 from model.Edge import ArtificialEdge
 
+class ExitEdge(ArtificialEdge):
+    def __init__(self, vS, vT, lower, upper, weight, temporary=True):
+        super().__init__(vS, vT, lower, upper, weight, temporary=temporary)
+
 class ArtificialNodeInserter:
     DEFAULT_LOWER = 0
     DEFAULT_UPPER = 1
@@ -91,7 +95,7 @@ class ArtificialNodeInserter:
 
     def add_exit_edge_vs_to_vt(self, U, gamma):
         F = self.pipeline.max_flow_value
-        edge = self.create_artificial_edge(self.vS, self.vT, self.DEFAULT_LOWER, max(F - U, 0), gamma)
+        edge = ExitEdge(self.vS, self.vT, self.DEFAULT_LOWER, max(F - U, 0), gamma)
         self.processor.ts_edges.append(edge)
         self.edges_added.append(edge)
 
