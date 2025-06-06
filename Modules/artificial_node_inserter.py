@@ -31,14 +31,6 @@ class ArtificialNodeInserter:
                     return e
         return None
 
-    def remove_edge_by_id(self, u, v):
-        for e in self.processor.ts_edges:
-            if getattr(e, 'start_node', None) and getattr(e, 'end_node', None):
-                if e.start_node.id == u and e.end_node.id == v:
-                    self.processor.ts_edges.remove(e)
-                    return True
-        return False
-
     def create_artificial_nodes(self, idx):
         node1 = ArtificialNode(id=self.artificial_node_id, label=f"virt_{idx}_1")
         node2 = ArtificialNode(id=self.artificial_node_id + 1, label=f"virt_{idx}_2")
@@ -58,7 +50,7 @@ class ArtificialNodeInserter:
         self.edges_added.extend(edges_artificial)
     
     def _remove_and_replace_edge(self, u, v, node1, node2, lower, upper, cost):
-        removed = self.remove_edge_by_id(u, v)
+        removed = self.processor.remove_edge_by_id(u, v)
         if not removed:
             print(f"⚠️  Không tìm thấy cung gốc ({u} → {v}) để loại bỏ")
         edges_replacement = [

@@ -544,17 +544,47 @@ class GraphProcessor(KickOffGenerator):
         self.process_restrictions()
 
     def remove_artificial_nodes_and_edges(self):
-        # Remove ArtificialNode from ts_nodes
-        self.ts_nodes = [node for node in self.ts_nodes if node.__class__.__name__ != "ArtificialNode"]
-        # Remove ArtificialNode from graph.nodes
+        # Remove ArtificialNode & RestrictionNode from ts_nodes
+        self.ts_nodes = [
+            node for node in self.ts_nodes
+            if node.__class__.__name__ not in ("ArtificialNode", "RestrictionNode")
+        ]
+        # Remove ArtificialNode & RestrictionNode from graph.nodes
         if hasattr(self, 'graph') and self.graph is not None:
-            self.graph.nodes = {k: v for k, v in self.graph.nodes.items() if v.__class__.__name__ != "ArtificialNode"}
-        # Remove ArtificialEdge from ts_edges
-        self.ts_edges = [edge for edge in self.ts_edges if edge.__class__.__name__ != "ArtificialEdge"]
-        # Remove ArtificialEdge from graph.adjacency_list
+            self.graph.nodes = {
+                k: v for k, v in self.graph.nodes.items()
+                if v.__class__.__name__ not in ("ArtificialNode", "RestrictionNode")
+            }
+        # Remove ArtificialEdge & RestrictionEdge from ts_edges
+        self.ts_edges = [
+            edge for edge in self.ts_edges
+            if edge.__class__.__name__ not in ("ArtificialEdge", "RestrictionEdge")
+        ]
+        # Remove ArtificialEdge & RestrictionEdge from graph.adjacency_list
         if hasattr(self, 'graph') and self.graph is not None:
             for k in list(self.graph.adjacency_list.keys()):
                 self.graph.adjacency_list[k] = [
                     (end_id, edge) for end_id, edge in self.graph.adjacency_list[k]
-                    if edge.__class__.__name__ != "ArtificialEdge"
+                    if edge.__class__.__name__ not in ("ArtificialEdge", "RestrictionEdge")
                 ]
+        # Reset pipeline state if exists
+        if hasattr(self, "pipeline") and self.pipeline is not None:
+            self.pipeline.omega_edges = []
+            self.pipeline.omega_nodes = set()
+            self.pipeline.omega_in = set()
+            self.pipeline.omega_out = set()
+            self.pipeline.in_caps = {}
+            self.pipeline.out_caps = {}
+            self.pipeline.max_flow_value = 0
+        # Reset restriction_controller state if exists
+        if hasattr(self, "restriction_controller") and self.restriction_controller is not None:
+            if hasattr(self.restriction_controller, "restriction_edges"):
+                self.restriction_controller.restriction_edges.clear()
+    
+    def remove_edge_by_id(self, u, v):
+        for e in self.ts_edges:
+            if getattr(e, 'start_node', None) and getattr(e, 'end_node', None):
+                if e.start_node.id == u and e.end_node.id == v:
+                    self.ts_edges.remove(e)
+                    return True
+        return False
