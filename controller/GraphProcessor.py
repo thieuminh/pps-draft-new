@@ -35,6 +35,7 @@ class GraphProcessor(KickOffGenerator):
         # self._end_ban = -1
         self._time_determinator = TimeDeterminator(self)
         # Initialize an empty list to store the processed numbers
+        #
         self.start_ban = -1
         self.end_ban = -1
 
