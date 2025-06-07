@@ -1,5 +1,6 @@
 from controller.NodeGenerator import ArtificialNode
 from model.Edge import ArtificialEdge
+import random
 
 class ExitEdge(ArtificialEdge):
     def __init__(self, vS, vT, lower, upper, weight, temporary=True):
@@ -10,15 +11,35 @@ class ArtificialNodeInserter:
     DEFAULT_UPPER = 1
     DEFAULT_GAMMA = 1230919231
 
-    def __init__(self, processor, vs_id=999001, vt_id=999002, start_artificial_id=999100):
+    def __init__(self, processor, vs_id=None, vt_id=None, start_artificial_id=None):
         self.processor = processor
         self.pipeline = processor.pipeline
-        self.vs_id = vs_id
-        self.vt_id = vt_id
-        self.artificial_node_id = start_artificial_id
+
+        max_id = self._get_max_id()
+        offset = self._get_offset()
+        artificial_offset = self._get_artificial_offset()
+
+        self.vs_id = vs_id if vs_id is not None else max_id + offset
+        self.vt_id = vt_id if vt_id is not None else max_id + offset + 1
+        self.artificial_node_id = start_artificial_id if start_artificial_id is not None else self.vt_id + artificial_offset
+
         self.vS = ArtificialNode(id=self.vs_id, label="vS")
         self.vT = ArtificialNode(id=self.vt_id, label="vT")
         self.edges_added = []
+
+    def _get_max_id(self):
+        all_ids = [node.id for node in self.processor.ts_nodes]
+        if hasattr(self.processor, "graph") and hasattr(self.processor.graph, "nodes"):
+            all_ids += list(self.processor.graph.nodes.keys())
+        return max(all_ids) if all_ids else 1000
+
+    def _get_offset(self):
+        node_count = len(set(node.id for node in self.processor.ts_nodes))
+        return max(1000, node_count * 10)
+
+    def _get_artificial_offset(self):
+        node_count = len(set(node.id for node in self.processor.ts_nodes))
+        return max(100, node_count * 2)
 
     # ==== Các hàm tiện ích, phụ trợ ==== #
     def create_artificial_edge(self, start, end, lower, upper, weight, temporary=True):
@@ -70,7 +91,7 @@ class ArtificialNodeInserter:
             cost = getattr(edge, 'weight', 1)
             print(f"a {u} {v} {low} {up} {cost}")
         print(f"→ Tổng số cung ảo được thêm: {len(self.edges_added)}")
-
+    
     # ==== Các hàm được gọi trong run() ====
     def add_artificial_source_sink_nodes(self):
         self.processor.ts_nodes.extend([self.vS, self.vT])
@@ -84,7 +105,7 @@ class ArtificialNodeInserter:
     def ask_gamma(self):
         gamma_input = input("Nhập gamma (cost vS→vT, mặc định = 1230919231): ")
         return int(gamma_input) if gamma_input.strip() else self.DEFAULT_GAMMA
-
+    
     def add_exit_edge_vs_to_vt(self, U, gamma):
         F = self.pipeline.max_flow_value
         edge = ExitEdge(self.vS, self.vT, self.DEFAULT_LOWER, max(F - U, 0), gamma)
