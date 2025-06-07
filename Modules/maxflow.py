@@ -186,22 +186,6 @@ class MaxFlowPipeline:
         self.max_flow_value = flow_value
         return flow_value
 
-    def get_conditions_from_input(self):
-        print("Nhập các bộ điều kiện x y a b (Enter dòng trống để kết thúc, mặc định là '1 2 3 4'):")
-        conditions = []
-        while True:
-            line = input("Nhập x y a b: ").strip()
-            if not line:
-                break
-            try:
-                x, y, a, b = map(int, line.split())
-                conditions.append((x, y, a, b))
-            except:
-                print("⚠️  Nhập không hợp lệ. Nhập lại theo định dạng: x y a b")
-        if not conditions:
-            conditions = [(1, 2, 3, 4)]
-        return conditions
-
     def run_all(self, conditions):
         self.M = self.graph_processor.M
         self.find_omega(conditions)

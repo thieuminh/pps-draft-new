@@ -137,17 +137,14 @@ class ArtificialNodeInserter:
 
     def write_to_dimacs_file(self, filename="TSG1.txt"):
         F = self.pipeline.max_flow_value
-        U = self.ask_upper_bound()  # hoặc truyền U vào hàm nếu cần
+        U = self.ask_upper_bound()  
         supply = F - U
 
         with open(filename, "w") as f:
-            # Nếu có dòng p min ... thì ghi trước
             if hasattr(self.processor, "dimacs_header"):
                 f.write(self.processor.dimacs_header + "\n")
-            # Ghi supply/demand cho vS và vT
             f.write(f"n {self.vS.id} {supply}\n")
             f.write(f"n {self.vT.id} {-supply}\n")
-            # Ghi các cung
             for e in self.processor.ts_edges:
                 if hasattr(e, 'start_node') and hasattr(e, 'end_node'):
                     u = e.start_node.id
@@ -159,7 +156,6 @@ class ArtificialNodeInserter:
         print(f"✅ File {filename} đã được tạo thành công.")
 
     def write_to_dimacs_file_from_tsg(self, tsg_path=None, out_path="TSG1.txt"):
-        # Nếu không truyền tsg_path thì tự động lấy file TSG.txt ở thư mục cha
         if tsg_path is None:
             tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
         else:
@@ -169,7 +165,6 @@ class ArtificialNodeInserter:
         U = self.ask_upper_bound()
         supply = F - U
 
-        # Đọc toàn bộ file TSG.txt
         with open(tsg_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
