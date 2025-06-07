@@ -27,13 +27,12 @@ https://docs.google.com/document/d/13S_Ycg-aB4GjEm8xe6tAoUHzhS-Z1iFnM4jX_bWFddo/
 
 class GraphProcessor(KickOffGenerator):
     def __init__(self, dm):
-        super().__init__(dm) 
+        super().__init__(dm)
         self._adj = []  # Adjacency matrix
-        #self._tsedges = []
         self._restriction_controller = None
-        #self._start_ban = -1
-        #self._end_ban = -1
         self._time_determinator = TimeDeterminator(self)
+        self.start_ban = 0   # Giá trị mặc định, bạn có thể thay đổi cho phù hợp
+        self.end_ban = 0     # Giá trị mặc định, bạn có thể thay đổi cho phù hợp
         # Initialize an empty list to store the processed numbers
 
 #===============================================================================
