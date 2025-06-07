@@ -27,12 +27,13 @@ https://docs.google.com/document/d/13S_Ycg-aB4GjEm8xe6tAoUHzhS-Z1iFnM4jX_bWFddo/
 
 class GraphProcessor(KickOffGenerator):
     def __init__(self, dm):
-        super().__init__(dm)
+        super().__init__(dm) 
         self._adj = []  # Adjacency matrix
+        #self._tsedges = []
         self._restriction_controller = None
+        #self._start_ban = -1
+        #self._end_ban = -1
         self._time_determinator = TimeDeterminator(self)
-        self.start_ban = 0   # Giá trị mặc định, bạn có thể thay đổi cho phù hợp
-        self.end_ban = 0     # Giá trị mặc định, bạn có thể thay đổi cho phù hợp
         # Initialize an empty list to store the processed numbers
 
 #===============================================================================
@@ -458,6 +459,7 @@ class GraphProcessor(KickOffGenerator):
 
     def process_restrictions(self):
         self.remove_artificial_nodes_and_edges()
+        """Xử lý các hạn chế trong đồ thị."""
         if self.restriction_controller is None:
             self.restriction_controller = RestrictionController(self)
 
@@ -474,7 +476,26 @@ class GraphProcessor(KickOffGenerator):
         self.update_edges(new_a)
         self.insert_halting_edges()
         self.write_to_file()
-        self._run_maxflow_and_insert_artificial()
+
+
+        # Nhập input 
+        conditions = get_maxflow_conditions()
+        U = get_artificial_upper_bound()
+        gamma = get_artificial_gamma()
+
+        # Chạy MaxFlow
+        self.pipeline = MaxFlowPipeline(self)
+        F = self.pipeline.run_all(conditions)
+        print(f"✅ Max Flow F = {F}, U = {U}")
+
+        # Nếu F > U thì mới chạy ArtificialNodeInserter
+        if F > U:
+            if self.graph is None:
+                self.graph = Graph(self)
+            inserter = ArtificialNodeInserter(self)
+            inserter.run(U, gamma)
+        else:
+            print("Không cần chèn node/cung ảo vì F ≤ U.")
 
     def get_edges_with_cost(self):
         """Trả về một từ điển các cạnh với chi phí."""
@@ -522,54 +543,18 @@ class GraphProcessor(KickOffGenerator):
         #pdb.set_trace()
         self.process_restrictions()
 
-    def _run_maxflow_and_insert_artificial(self):
-        """Chạy MaxFlow và chèn node/cung ảo nếu cần."""
-        self.pipeline = MaxFlowPipeline(self)
-        F = self.pipeline.run_all(get_maxflow_conditions())
-        U = get_artificial_upper_bound()
-        print(f"✅ Max Flow F = {F}, U = {U}")
-        if F > U:
-            if self.graph is None:
-                self.graph = Graph(self)
-            ArtificialNodeInserter(self).run(U, get_artificial_gamma())
-        else:
-            print("Không cần chèn node/cung ảo vì F ≤ U.")
-
-    def remove_edge_by_id(self, u, v):
-        """Xóa cạnh từ ts_edges dựa trên id hai đầu mút."""
-        self.ts_edges = [
-            e for e in self.ts_edges
-            if not (getattr(e, 'start_node', None) and getattr(e, 'end_node', None) and e.start_node.id == u and e.end_node.id == v)
-        ]
-        return True
-
     def remove_artificial_nodes_and_edges(self):
-        """Xóa toàn bộ node/cung ảo và reset trạng thái pipeline, restriction_controller."""
-        artificial_types = {"ArtificialNode", "RestrictionNode"}
-        artificial_edge_types = {"ArtificialEdge", "RestrictionEdge"}
-
-        def not_artificial(obj, types):
-            return getattr(obj, "__class__", type("")).__name__ not in types
-
-        self.ts_nodes = [n for n in self.ts_nodes if not_artificial(n, artificial_types)]
-        self.ts_edges = [e for e in self.ts_edges if not_artificial(e, artificial_edge_types)]
-
-        if getattr(self, 'graph', None):
-            self.graph.nodes = {k: v for k, v in self.graph.nodes.items() if not_artificial(v, artificial_types)}
-            for k in self.graph.adjacency_list:
+        # Remove ArtificialNode from ts_nodes
+        self.ts_nodes = [node for node in self.ts_nodes if node.__class__.__name__ != "ArtificialNode"]
+        # Remove ArtificialNode from graph.nodes
+        if hasattr(self, 'graph') and self.graph is not None:
+            self.graph.nodes = {k: v for k, v in self.graph.nodes.items() if v.__class__.__name__ != "ArtificialNode"}
+        # Remove ArtificialEdge from ts_edges
+        self.ts_edges = [edge for edge in self.ts_edges if edge.__class__.__name__ != "ArtificialEdge"]
+        # Remove ArtificialEdge from graph.adjacency_list
+        if hasattr(self, 'graph') and self.graph is not None:
+            for k in list(self.graph.adjacency_list.keys()):
                 self.graph.adjacency_list[k] = [
-                    (end_id, edge) for end_id, edge in self.graph.adjacency_list[k] if not_artificial(edge, artificial_edge_types)
+                    (end_id, edge) for end_id, edge in self.graph.adjacency_list[k]
+                    if edge.__class__.__name__ != "ArtificialEdge"
                 ]
-
-        # Reset pipeline state
-        pipeline = getattr(self, "pipeline", None)
-        if pipeline:
-            for attr in ("omega_edges", "omega_nodes", "omega_in", "omega_out", "in_caps", "out_caps"):
-                val = type(getattr(pipeline, attr, []))()
-                setattr(pipeline, attr, val)
-            pipeline.max_flow_value = 0
-
-        # Reset restriction_controller state
-        rc = getattr(self, "restriction_controller", None)
-        if rc and hasattr(rc, "restriction_edges"):
-            rc.restriction_edges.clear()
