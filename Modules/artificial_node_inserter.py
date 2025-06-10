@@ -226,7 +226,6 @@ class ArtificialNodeInserter:
         n_lines_pos.append(f"n {vs_id} {supply}\n")
         n_lines_neg.append(f"n {vt_id} {-supply}\n")
 
-        # Lấy danh sách các cung gốc 
         # Lấy danh sách các cung gốc đã có trong bộ nhớ (không phải artificial)
         original_edges = set()
         for e in self.processor.ts_edges:
@@ -255,9 +254,6 @@ class ArtificialNodeInserter:
                     up = getattr(e, 'upper', self.DEFAULT_UPPER)
                     cost = getattr(e, 'weight', 1)
                     artificial_edges_lines.append(f"a {u} {v} {low} {up} {cost}\n")
-        
-        print(artificial_edges_lines)
-        print("-------------------------------------------------------------------------------------------------------")
 
         # Tạo dòng p mới theo đúng số node và số cung hiện tại
         max_node_id = 0
@@ -275,6 +271,54 @@ class ArtificialNodeInserter:
                 f.write(line)
             # for target in self.processor.target_nodes:
             #     f.write(f"n {target.id} -1\n")
+            for line in n_lines_neg:
+                f.write(line)
+            # Ghi các cung Exceed/comment
+            H = getattr(self.processor, 'H', None)
+            M = getattr(self.processor, 'M', None)
+            for edge in self.processor.ts_edges:
+                if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
+                    u = edge.start_node.id
+                    v = edge.end_node.id
+                    low = getattr(edge, 'lower', self.DEFAULT_LOWER)
+                    up = getattr(edge, 'upper', self.DEFAULT_UPPER)
+                    cost = getattr(edge, 'weight', 1)
+                    if H is not None and M is not None and cost == H * H:
+                        time = u // M - (1 if u % M == 0 else 0)
+                        if time >= H:
+                            f.write(f"c Exceed {cost} {cost // M} as {u} // {M} - (1 if {u} % {M} == 0 else 0)\n")
+                    f.write(f"a {u} {v} {low} {up} {cost}\n")
+        print("-------------------------------------------------------------------------------------------------------")
+        print(f"✅ File {tsg_path} đã được cập nhật lại với p, n (giữ nguyên các dòng n_lines), các cung (có Exceed nếu cần), các dòng khác và các cung ảo mới.")
+
+    def write_to_dimacs_file_from_tsg_2(self, tsg_path=None):
+        if tsg_path is None:
+            tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
+        else:
+            tsg_path = Path(tsg_path).resolve()
+
+        n_lines_pos = []
+        n_lines_neg = []
+        
+        for start in self.processor.started_nodes:
+            n_lines_pos.append(f"n {start} 1\n")
+        for target in self.processor.target_nodes:
+            n_lines_neg.append(f"n {target} -1\n") #target.id vào thì lại sai???
+
+        # Tạo dòng p mới theo đúng số node và số cung hiện tại
+        max_node_id = 0
+        num_edges = 0
+        for edge in self.processor.ts_edges:
+            if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
+                max_node_id = max(max_node_id, edge.start_node.id, edge.end_node.id)
+                num_edges += 1
+        p_line = f"p min {max_node_id} {num_edges}\n"
+
+        # Ghi lại file TSG.txt với đúng thứ tự và logic Exceed như write_to_file
+        with open(tsg_path, "w", encoding="utf-8") as f:
+            f.write(p_line)
+            for line in n_lines_pos:
+                f.write(line)
             for line in n_lines_neg:
                 f.write(line)
             # Ghi các cung Exceed/comment
