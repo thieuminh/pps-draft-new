@@ -18,11 +18,10 @@ class ArtificialNodeInserter:
 
         max_id = self._get_max_id()
         offset = self._get_offset()
-        artificial_offset = self._get_artificial_offset()
 
         self.vs_id = vs_id if vs_id is not None else max_id + offset
         self.vt_id = vt_id if vt_id is not None else max_id + offset + 1
-        self.artificial_node_id = start_artificial_id if start_artificial_id is not None else self.vt_id + artificial_offset
+        self.artificial_node_id = start_artificial_id if start_artificial_id is not None else random.randint(self.vt_id + 10, self.vt_id + 1000)
 
         self.vS = ArtificialNode(id=self.vs_id, label="vS")
         self.vT = ArtificialNode(id=self.vt_id, label="vT")
@@ -37,10 +36,6 @@ class ArtificialNodeInserter:
     def _get_offset(self):
         node_count = len(set(node.id for node in self.processor.ts_nodes))
         return max(1000, node_count * 10)
-
-    def _get_artificial_offset(self):
-        node_count = len(set(node.id for node in self.processor.ts_nodes))
-        return max(100, node_count * 2)
 
     # ==== Các hàm tiện ích, phụ trợ ==== #
     def create_artificial_edge(self, start, end, lower, upper, weight, temporary=True):
@@ -188,12 +183,9 @@ class ArtificialNodeInserter:
 
         # Lấy danh sách các cung gốc đã có trong file
         original_edges = set()
-        for line in lines:
-            if line.startswith("a "):
-                parts = line.strip().split()
-                if len(parts) >= 3:
-                    u, v = int(parts[1]), int(parts[2])
-                    original_edges.add((u, v))
+        for u, edges in self.processor.graph.adjacency_list.items():
+            for v, edge in edges:
+                original_edges.add((u, v))
 
         # Thêm các cung ảo mới vào cuối file
         with open(out_path, "w", encoding="utf-8") as f:
@@ -220,70 +212,88 @@ class ArtificialNodeInserter:
         U = self.ask_upper_bound()
         supply = F - U
 
-        with open(tsg_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+        n_lines_pos = []
+        n_lines_neg = []
 
-        # Tìm vị trí dòng a đầu tiên
-        first_a_idx = next((i for i, line in enumerate(lines) if line.startswith("a ")), len(lines))
-
-        # Tách các dòng trước và sau dòng a đầu tiên
-        before_a = lines[:first_a_idx]
-        after_a = lines[first_a_idx:]
-
-        # Xử lý các dòng n: cập nhật hoặc thêm vS/vT
         vs_id = self.vS.id
         vt_id = self.vT.id
-        found_vs = found_vt = False
-        new_n_lines = []
-        other_lines = []
-        for line in before_a:
-            if line.startswith("n "):
-                parts = line.strip().split()
-                if len(parts) >= 3:
-                    if int(parts[1]) == vs_id:
-                        new_n_lines.append(f"n {vs_id} {supply}\n")
-                        found_vs = True
-                        continue
-                    elif int(parts[1]) == vt_id:
-                        new_n_lines.append(f"n {vt_id} {-supply}\n")
-                        found_vt = True
-                        continue
-            new_n_lines.append(line) if line.startswith("n ") else other_lines.append(line)
-        # Nếu chưa có thì thêm vào
-        if not found_vs:
-            new_n_lines.append(f"n {vs_id} {supply}\n")
-        if not found_vt:
-            new_n_lines.append(f"n {vt_id} {-supply}\n")
+        
+        for start in self.processor.started_nodes:
+            n_lines_pos.append(f"n {start} 1\n")
+        for target in self.processor.target_nodes:
+            n_lines_neg.append(f"n {target} -1\n") #target.id vào thì lại sai???
 
-        # Ghi lại phần đầu file: các dòng khác + các dòng n (đã cập nhật)
-        output_lines = []
-        output_lines.extend(other_lines)
-        output_lines.extend(new_n_lines)
-        output_lines.extend(after_a)
+        n_lines_pos.append(f"n {vs_id} {supply}\n")
+        n_lines_neg.append(f"n {vt_id} {-supply}\n")
 
-        # Lấy danh sách các cung gốc đã có trong file
+        # Lấy danh sách các cung gốc 
+        # Lấy danh sách các cung gốc đã có trong bộ nhớ (không phải artificial)
         original_edges = set()
-        for line in lines:
-            if line.startswith("a "):
-                parts = line.strip().split()
-                if len(parts) >= 3:
-                    u, v = int(parts[1]), int(parts[2])
+        for e in self.processor.ts_edges:
+            if hasattr(e, 'start_node') and hasattr(e, 'end_node'):
+                u = e.start_node.id
+                v = e.end_node.id
+                if not isinstance(e, ArtificialEdge):
                     original_edges.add((u, v))
-
-        # Thêm các cung ảo mới vào cuối file
-        with open(tsg_path, "w", encoding="utf-8") as f:
-            f.writelines(output_lines)
-            for e in self.processor.ts_edges:
-                if hasattr(e, 'start_node') and hasattr(e, 'end_node'):
-                    u = e.start_node.id
-                    v = e.end_node.id
-                    if (u, v) not in original_edges:
-                        low = getattr(e, 'lower', self.DEFAULT_LOWER)
-                        up = getattr(e, 'upper', self.DEFAULT_UPPER)
-                        cost = getattr(e, 'weight', 1)
-                        f.write(f"a {u} {v} {low} {up} {cost}\n")
+                    
+        # Chuẩn bị các cung ảo mới (chỉ lấy cung artificial mới)
+        artificial_edges_lines = []
+        for e in self.processor.ts_edges:
+            if hasattr(e, 'start_node') and hasattr(e, 'end_node'):
+                u_node = e.start_node
+                v_node = e.end_node
+                u = u_node.id
+                v = v_node.id
+                is_artificial = (
+                    isinstance(u_node, ArtificialNode) or
+                    isinstance(v_node, ArtificialNode) or
+                    (hasattr(u_node, 'label') and str(u_node.label).startswith('virt_')) or
+                    (hasattr(v_node, 'label') and str(v_node.label).startswith('virt_'))
+                )
+                if is_artificial and (u, v) not in original_edges:
+                    low = getattr(e, 'lower', self.DEFAULT_LOWER)
+                    up = getattr(e, 'upper', self.DEFAULT_UPPER)
+                    cost = getattr(e, 'weight', 1)
+                    artificial_edges_lines.append(f"a {u} {v} {low} {up} {cost}\n")
+        
+        print(artificial_edges_lines)
         print("-------------------------------------------------------------------------------------------------------")
-        print(f"✅ File {tsg_path} đã được cập nhật đúng thứ tự và bổ sung các cung ảo mới vào chính file này.")
+
+        # Tạo dòng p mới theo đúng số node và số cung hiện tại
+        max_node_id = 0
+        num_edges = 0
+        for edge in self.processor.ts_edges:
+            if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
+                max_node_id = max(max_node_id, edge.start_node.id, edge.end_node.id)
+                num_edges += 1
+        p_line = f"p min {max_node_id} {num_edges}\n"
+
+        # Ghi lại file TSG.txt với đúng thứ tự và logic Exceed như write_to_file
+        with open(tsg_path, "w", encoding="utf-8") as f:
+            f.write(p_line)
+            for line in n_lines_pos:
+                f.write(line)
+            # for target in self.processor.target_nodes:
+            #     f.write(f"n {target.id} -1\n")
+            for line in n_lines_neg:
+                f.write(line)
+            # Ghi các cung Exceed/comment
+            H = getattr(self.processor, 'H', None)
+            M = getattr(self.processor, 'M', None)
+            for edge in self.processor.ts_edges:
+                if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
+                    u = edge.start_node.id
+                    v = edge.end_node.id
+                    low = getattr(edge, 'lower', self.DEFAULT_LOWER)
+                    up = getattr(edge, 'upper', self.DEFAULT_UPPER)
+                    cost = getattr(edge, 'weight', 1)
+                    if H is not None and M is not None and cost == H * H:
+                        time = u // M - (1 if u % M == 0 else 0)
+                        if time >= H:
+                            f.write(f"c Exceed {cost} {cost // M} as {u} // {M} - (1 if {u} % {M} == 0 else 0)\n")
+                    f.write(f"a {u} {v} {low} {up} {cost}\n")
+        print("-------------------------------------------------------------------------------------------------------")
+        print(f"✅ File {tsg_path} đã được cập nhật lại với p, n (giữ nguyên các dòng n_lines), các cung (có Exceed nếu cần), các dòng khác và các cung ảo mới.")
 
     def run(self, U, gamma):
         self.add_artificial_source_sink_nodes()

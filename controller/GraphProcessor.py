@@ -466,8 +466,7 @@ class GraphProcessor(KickOffGenerator):
         if self.restriction_controller is None:
             self.restriction_controller = RestrictionController(self)
 
-        # self.insert_halting_edges()
-        # self.write_to_file()
+        self.insert_halting_edges()
         F = self.restriction_controller.compute_maxflow()
         self.restriction_controller.insert_artificial_objects(F)
 
