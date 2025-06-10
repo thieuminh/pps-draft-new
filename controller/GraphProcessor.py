@@ -468,7 +468,6 @@ class GraphProcessor(KickOffGenerator):
 
         # self.insert_halting_edges()
         # self.write_to_file()
-        self.get_max_id()
         F = self.restriction_controller.compute_maxflow()
         self.restriction_controller.insert_artificial_objects(F)
 
