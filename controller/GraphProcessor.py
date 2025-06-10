@@ -466,21 +466,11 @@ class GraphProcessor(KickOffGenerator):
         if self.restriction_controller is None:
             self.restriction_controller = RestrictionController(self)
 
-        edges_with_cost = self.get_edges_with_cost()
-        maxid = self.get_max_id() + 1
-        new_a = set()
-
-        for restriction in self.restrictions:
-            R = self.restriction_controller.create_restricted_edges(restriction, edges_with_cost, maxid)
-            if R:
-                new_a.update(self.create_new_edges(restriction, R, maxid))
-                maxid += 3
-
-        self.update_edges(new_a)
-        self.insert_halting_edges()
-        self.write_to_file()
-
-        self._run_maxflow_and_insert_artificial()
+        # self.insert_halting_edges()
+        # self.write_to_file()
+        self.get_max_id()
+        F = self.restriction_controller.compute_maxflow()
+        self.restriction_controller.insert_artificial_objects(F)
 
     def get_edges_with_cost(self):
         """Trả về một từ điển các cạnh với chi phí."""
@@ -527,19 +517,6 @@ class GraphProcessor(KickOffGenerator):
         self.ur = 3
         #pdb.set_trace()
         self.process_restrictions()
-
-    def _run_maxflow_and_insert_artificial(self):
-        """Chạy MaxFlow và chèn node/cung ảo nếu cần."""
-        self.pipeline = MaxFlowPipeline(self)
-        F = self.pipeline.run_all(get_maxflow_conditions())
-        U = get_artificial_upper_bound()
-        print(f"✅ Max Flow F = {F}, U = {U}")
-        if F > U:
-            if self.graph is None:
-                self.graph = Graph(self)
-            ArtificialNodeInserter(self).run(U, get_artificial_gamma())
-        else:
-            print("Không cần chèn node/cung ảo vì F ≤ U.")
     
     def remove_edge_by_id(self, u, v):
         """Xóa cạnh từ ts_edges dựa trên id hai đầu mút."""

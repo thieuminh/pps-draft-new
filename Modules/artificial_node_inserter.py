@@ -28,7 +28,7 @@ class ArtificialNodeInserter:
         self.vT = ArtificialNode(id=self.vt_id, label="vT")
         self.edges_added = []
 
-    def _get_max_id(self):
+    def _get_max_id(self): # Lấy ID lớn nhất từ bộ nhớ
         all_ids = [node.id for node in self.processor.ts_nodes]
         if hasattr(self.processor, "graph") and hasattr(self.processor.graph, "nodes"):
             all_ids += list(self.processor.graph.nodes.keys())
@@ -135,27 +135,7 @@ class ArtificialNodeInserter:
             self._add_artificial_edges(node1, node2, lower, upper, F, U)
             self._remove_and_replace_edge(u, v, node1, node2, lower, upper, cost)
 
-    def write_to_dimacs_file(self, filename="TSG1.txt"):
-        F = self.pipeline.max_flow_value
-        U = self.ask_upper_bound()  
-        supply = F - U
-
-        with open(filename, "w") as f:
-            if hasattr(self.processor, "dimacs_header"):
-                f.write(self.processor.dimacs_header + "\n")
-            f.write(f"n {self.vS.id} {supply}\n")
-            f.write(f"n {self.vT.id} {-supply}\n")
-            for e in self.processor.ts_edges:
-                if hasattr(e, 'start_node') and hasattr(e, 'end_node'):
-                    u = e.start_node.id
-                    v = e.end_node.id
-                    low = getattr(e, 'lower', self.DEFAULT_LOWER)
-                    up = getattr(e, 'upper', self.DEFAULT_UPPER)
-                    cost = getattr(e, 'weight', 1)
-                    f.write(f"a {u} {v} {low} {up} {cost}\n")
-        print(f"✅ File {filename} đã được tạo thành công.")
-
-    def write_to_dimacs_file_from_tsg(self, tsg_path=None, out_path="TSG1.txt"):
+    def write_to_dimacs_file(self, tsg_path=None, out_path="TSG1.txt"):
         if tsg_path is None:
             tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
         else:
@@ -229,6 +209,81 @@ class ArtificialNodeInserter:
                         f.write(f"a {u} {v} {low} {up} {cost}\n")
         print("-------------------------------------------------------------------------------------------------------")
         print(f"✅ File {out_path} đã được cập nhật đúng thứ tự và bổ sung các cung ảo mới từ {tsg_path}.")
+
+    def write_to_dimacs_file_from_tsg(self, tsg_path=None):
+        if tsg_path is None:
+            tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
+        else:
+            tsg_path = Path(tsg_path).resolve()
+
+        F = self.pipeline.max_flow_value
+        U = self.ask_upper_bound()
+        supply = F - U
+
+        with open(tsg_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        # Tìm vị trí dòng a đầu tiên
+        first_a_idx = next((i for i, line in enumerate(lines) if line.startswith("a ")), len(lines))
+
+        # Tách các dòng trước và sau dòng a đầu tiên
+        before_a = lines[:first_a_idx]
+        after_a = lines[first_a_idx:]
+
+        # Xử lý các dòng n: cập nhật hoặc thêm vS/vT
+        vs_id = self.vS.id
+        vt_id = self.vT.id
+        found_vs = found_vt = False
+        new_n_lines = []
+        other_lines = []
+        for line in before_a:
+            if line.startswith("n "):
+                parts = line.strip().split()
+                if len(parts) >= 3:
+                    if int(parts[1]) == vs_id:
+                        new_n_lines.append(f"n {vs_id} {supply}\n")
+                        found_vs = True
+                        continue
+                    elif int(parts[1]) == vt_id:
+                        new_n_lines.append(f"n {vt_id} {-supply}\n")
+                        found_vt = True
+                        continue
+            new_n_lines.append(line) if line.startswith("n ") else other_lines.append(line)
+        # Nếu chưa có thì thêm vào
+        if not found_vs:
+            new_n_lines.append(f"n {vs_id} {supply}\n")
+        if not found_vt:
+            new_n_lines.append(f"n {vt_id} {-supply}\n")
+
+        # Ghi lại phần đầu file: các dòng khác + các dòng n (đã cập nhật)
+        output_lines = []
+        output_lines.extend(other_lines)
+        output_lines.extend(new_n_lines)
+        output_lines.extend(after_a)
+
+        # Lấy danh sách các cung gốc đã có trong file
+        original_edges = set()
+        for line in lines:
+            if line.startswith("a "):
+                parts = line.strip().split()
+                if len(parts) >= 3:
+                    u, v = int(parts[1]), int(parts[2])
+                    original_edges.add((u, v))
+
+        # Thêm các cung ảo mới vào cuối file
+        with open(tsg_path, "w", encoding="utf-8") as f:
+            f.writelines(output_lines)
+            for e in self.processor.ts_edges:
+                if hasattr(e, 'start_node') and hasattr(e, 'end_node'):
+                    u = e.start_node.id
+                    v = e.end_node.id
+                    if (u, v) not in original_edges:
+                        low = getattr(e, 'lower', self.DEFAULT_LOWER)
+                        up = getattr(e, 'upper', self.DEFAULT_UPPER)
+                        cost = getattr(e, 'weight', 1)
+                        f.write(f"a {u} {v} {low} {up} {cost}\n")
+        print("-------------------------------------------------------------------------------------------------------")
+        print(f"✅ File {tsg_path} đã được cập nhật đúng thứ tự và bổ sung các cung ảo mới vào chính file này.")
 
     def run(self, U, gamma):
         self.add_artificial_source_sink_nodes()

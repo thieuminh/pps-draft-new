@@ -1,6 +1,10 @@
 import os
 import pdb
 from collections import defaultdict
+from Modules.maxflow import MaxFlowPipeline
+from Modules.user_input import get_maxflow_conditions, get_artificial_upper_bound, get_artificial_gamma
+from Modules.artificial_node_inserter import ArtificialNodeInserter
+from model.Graph import Graph
 
 class RestrictionController:
     def __init__(self, graph_processor):
@@ -55,3 +59,23 @@ class RestrictionController:
                     e2 = (end_node.id, a_t, 0, 1, time_destination - time_source)
                     temp2 = self.graph_processor.find_node(a_t).create_edge(end_node, self.M, self.graph_processor.d, e2)
                     adj_edges[a_t].append(end_node.id, temp2)
+
+    def compute_maxflow(self):
+        """Chạy MaxFlow và trả về giá trị F."""
+        self.graph_processor.pipeline = MaxFlowPipeline(self.graph_processor)
+        F = self.graph_processor.pipeline.run_all(get_maxflow_conditions())
+        return F
+
+    def insert_artificial_objects(self, F, U=None, gamma=None):
+        """Chèn node/cung ảo nếu cần thiết."""
+        if U is None:
+            U = get_artificial_upper_bound()
+        if gamma is None:
+            gamma = get_artificial_gamma()
+        print(f"✅ Max Flow F = {F}, U = {U}")
+        if F > U:
+            if self.graph_processor.graph is None:
+                self.graph_processor.graph = Graph(self.graph_processor)
+            ArtificialNodeInserter(self.graph_processor).run(U, gamma)
+        else:
+            print("Không cần chèn node/cung ảo vì F ≤ U.")
