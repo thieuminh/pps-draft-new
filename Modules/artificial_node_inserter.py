@@ -57,7 +57,7 @@ class ArtificialNodeInserter:
         self.processor.graph.nodes[node2.id] = node2
         return node1, node2
 
-    def _add_artificial_edges(self, node1, node2, lower, upper, F, U):
+    def add_artificial_edges(self, node1, node2, lower, upper, F, U):
         edges_artificial = [
             self.create_artificial_edge(self.vS, node1, lower, F - U, 0),
             self.create_artificial_edge(node1, node2, lower, upper, 0),
@@ -66,7 +66,7 @@ class ArtificialNodeInserter:
         self.processor.ts_edges.extend(edges_artificial)
         self.edges_added.extend(edges_artificial)
     
-    def _remove_and_replace_edge(self, u, v, node1, node2, lower, upper, cost):
+    def remove_and_replace_edge(self, u, v, node1, node2, lower, upper, cost):
         removed = self.processor.remove_edge_by_id(u, v)
         if not removed:
             print(f"⚠️  Không tìm thấy cung gốc ({u} → {v}) để loại bỏ")
@@ -76,17 +76,57 @@ class ArtificialNodeInserter:
         ]
         self.processor.ts_edges.extend(edges_replacement)
         self.edges_added.extend(edges_replacement)
+    
+    def generate_p_line(self):
+        max_node_id = 0
+        num_edges = 0
+        for edge in self.processor.ts_edges:
+            if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
+                max_node_id = max(max_node_id, edge.start_node.id, edge.end_node.id)
+                num_edges += 1
+        return f"p min {max_node_id} {num_edges}\n"
+    
+    def generate_node_lines(self, supply=None):
+        pos_lines = [f"n {s} 1\n" for s in self.processor.started_nodes]
+        neg_lines = [f"n {t.id} -1\n" for t in self.processor.target_nodes]
 
-    def print_artificial_edges(self):
-        print("\n=== 📤 Danh sách các cung ảo đã được tạo ===")
-        for edge in self.edges_added:
-            u = edge.start_node.id
-            v = edge.end_node.id
-            low = getattr(edge, 'lower', self.DEFAULT_LOWER)
-            up = getattr(edge, 'upper', self.DEFAULT_UPPER)
-            cost = getattr(edge, 'weight', 1)
-            print(f"a {u} {v} {low} {up} {cost}")
-        print(f"→ Tổng số cung ảo được thêm: {len(self.edges_added)}")
+        if supply is not None:
+            pos_lines.append(f"n {self.vS.id} {supply}\n")
+            neg_lines.append(f"n {self.vT.id} {-supply}\n")
+
+        return pos_lines, neg_lines
+
+    def write_edges(self, file_handle):
+        H = getattr(self.processor, 'H', None)
+        M = getattr(self.processor, 'M', None)
+        for edge in self.processor.ts_edges:
+            if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
+                u = edge.start_node.id
+                v = edge.end_node.id
+                low = getattr(edge, 'lower', self.DEFAULT_LOWER)
+                up = getattr(edge, 'upper', self.DEFAULT_UPPER)
+                cost = getattr(edge, 'weight', 1)
+                if H is not None and M is not None and cost == H * H:
+                    time = u // M - (1 if u % M == 0 else 0)
+                    if time >= H:
+                        file_handle.write(f"c Exceed {cost} {cost // M} as {u} // {M} - (1 if {u} % {M} == 0 else 0)\n")
+                file_handle.write(f"a {u} {v} {low} {up} {cost}\n")
+
+    def write_to_dimacs(self, tsg_path=None, U=None):
+        if tsg_path is None:
+            tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
+        else:
+            tsg_path = Path(tsg_path).resolve()
+
+        supply = self.pipeline.max_flow_value - U if U is not None else None
+        pos_lines, neg_lines = self.generate_node_lines(supply)
+        p_line = self.generate_p_line()
+
+        with open(tsg_path, "w", encoding="utf-8") as f:
+            f.write(p_line)
+            for line in pos_lines + neg_lines:
+                f.write(line)
+            self.write_edges(f)
     
     # ==== Các hàm được gọi trong run() ====
     def add_artificial_source_sink_nodes(self):
@@ -123,138 +163,14 @@ class ArtificialNodeInserter:
 
             node1, node2 = self.create_artificial_nodes(idx)
 
-            self._add_artificial_edges(node1, node2, lower, upper, F, U)
-            self._remove_and_replace_edge(u, v, node1, node2, lower, upper, cost)
-
+            self.add_artificial_edges(node1, node2, lower, upper, F, U)
+            self.remove_and_replace_edge(u, v, node1, node2, lower, upper, cost)
+    
     def write_to_dimacs_file(self, U, tsg_path=None):
-        if tsg_path is None:
-            tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
-        else:
-            tsg_path = Path(tsg_path).resolve()
-    
-        F = self.pipeline.max_flow_value
-        supply = F - U
+        self.write_to_dimacs(tsg_path=tsg_path, U=U)
 
-        n_lines_pos = []
-        n_lines_neg = []
-
-        vs_id = self.vS.id
-        vt_id = self.vT.id
-        
-        for start in self.processor.started_nodes:
-            n_lines_pos.append(f"n {start} 1\n")
-        for target in self.processor.target_nodes:
-            n_lines_neg.append(f"n {target.id} -1\n") #target.id vào thì lại sai???
-        
-        n_lines_pos.append(f"n {vs_id} {supply}\n")
-        n_lines_neg.append(f"n {vt_id} {-supply}\n")
-
-        # Lấy danh sách các cung gốc đã có trong bộ nhớ (không phải artificial)
-        original_edges = set()
-        for e in self.processor.ts_edges:
-            if hasattr(e, 'start_node') and hasattr(e, 'end_node'):
-                u = e.start_node.id
-                v = e.end_node.id
-                if not isinstance(e, ArtificialEdge):
-                    original_edges.add((u, v))
-                    
-        # Chuẩn bị các cung ảo mới (chỉ lấy cung artificial mới)
-        artificial_edges_lines = []
-        for e in self.processor.ts_edges:
-            if hasattr(e, 'start_node') and hasattr(e, 'end_node'):
-                u_node = e.start_node
-                v_node = e.end_node
-                u = u_node.id
-                v = v_node.id
-                is_artificial = (
-                    isinstance(u_node, ArtificialNode) or
-                    isinstance(v_node, ArtificialNode) or
-                    (hasattr(u_node, 'label') and str(u_node.label).startswith('virt_')) or
-                    (hasattr(v_node, 'label') and str(v_node.label).startswith('virt_'))
-                )
-                if is_artificial and (u, v) not in original_edges:
-                    low = getattr(e, 'lower', self.DEFAULT_LOWER)
-                    up = getattr(e, 'upper', self.DEFAULT_UPPER)
-                    cost = getattr(e, 'weight', 1)
-                    artificial_edges_lines.append(f"a {u} {v} {low} {up} {cost}\n")
-
-        # Tạo dòng p mới theo đúng số node và số cung hiện tại
-        max_node_id = 0
-        num_edges = 0
-        for edge in self.processor.ts_edges:
-            if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
-                max_node_id = max(max_node_id, edge.start_node.id, edge.end_node.id)
-                num_edges += 1
-        p_line = f"p min {max_node_id} {num_edges}\n"
-
-        # Ghi lại file TSG.txt với đúng thứ tự và logic Exceed như write_to_file
-        with open(tsg_path, "w", encoding="utf-8") as f:
-            f.write(p_line)
-            for line in n_lines_pos:
-                f.write(line)
-            for line in n_lines_neg:
-                f.write(line)
-            # Ghi các cung Exceed/comment
-            H = getattr(self.processor, 'H', None)
-            M = getattr(self.processor, 'M', None)
-            for edge in self.processor.ts_edges:
-                if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
-                    u = edge.start_node.id
-                    v = edge.end_node.id
-                    low = getattr(edge, 'lower', self.DEFAULT_LOWER)
-                    up = getattr(edge, 'upper', self.DEFAULT_UPPER)
-                    cost = getattr(edge, 'weight', 1)
-                    if H is not None and M is not None and cost == H * H:
-                        time = u // M - (1 if u % M == 0 else 0)
-                        if time >= H:
-                            f.write(f"c Exceed {cost} {cost // M} as {u} // {M} - (1 if {u} % {M} == 0 else 0)\n")
-                    f.write(f"a {u} {v} {low} {up} {cost}\n")
-    
     def write_to_dimacs_file_from_tsg(self, tsg_path=None):
-        if tsg_path is None:
-            tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
-        else:
-            tsg_path = Path(tsg_path).resolve()
-
-        n_lines_pos = []
-        n_lines_neg = []
-        
-        for start in self.processor.started_nodes:
-            n_lines_pos.append(f"n {start} 1\n")
-        for target in self.processor.target_nodes:
-            n_lines_neg.append(f"n {target.id} -1\n") #target.id vào thì lại sai???
-
-        # Tạo dòng p mới theo đúng số node và số cung hiện tại
-        max_node_id = 0
-        num_edges = 0
-        for edge in self.processor.ts_edges:
-            if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
-                max_node_id = max(max_node_id, edge.start_node.id, edge.end_node.id)
-                num_edges += 1
-        p_line = f"p min {max_node_id} {num_edges}\n"
-
-        # Ghi lại file TSG.txt với đúng thứ tự và logic Exceed như write_to_file
-        with open(tsg_path, "w", encoding="utf-8") as f:
-            f.write(p_line)
-            for line in n_lines_pos:
-                f.write(line)
-            for line in n_lines_neg:
-                f.write(line)
-            # Ghi các cung Exceed/comment
-            H = getattr(self.processor, 'H', None)
-            M = getattr(self.processor, 'M', None)
-            for edge in self.processor.ts_edges:
-                if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
-                    u = edge.start_node.id
-                    v = edge.end_node.id
-                    low = getattr(edge, 'lower', self.DEFAULT_LOWER)
-                    up = getattr(edge, 'upper', self.DEFAULT_UPPER)
-                    cost = getattr(edge, 'weight', 1)
-                    if H is not None and M is not None and cost == H * H:
-                        time = u // M - (1 if u % M == 0 else 0)
-                        if time >= H:
-                            f.write(f"c Exceed {cost} {cost // M} as {u} // {M} - (1 if {u} % {M} == 0 else 0)\n")
-                    f.write(f"a {u} {v} {low} {up} {cost}\n")
+        self.write_to_dimacs(tsg_path=tsg_path)
 
     def run(self, U, gamma):
         self.add_artificial_source_sink_nodes()
