@@ -94,10 +94,6 @@ class ArtificialNodeInserter:
         self.processor.graph.nodes[self.vS.id] = self.vS
         self.processor.graph.nodes[self.vT.id] = self.vT
 
-    def ask_upper_bound(self):
-        U_input = input("Nhập U (upper bound mỗi nhánh phụ, mặc định = 1): ")
-        return int(U_input) if U_input.strip() else 1
-
     def ask_gamma(self):
         gamma_input = input("Nhập gamma (cost vS→vT, mặc định = 1230919231): ")
         return int(gamma_input) if gamma_input.strip() else self.DEFAULT_GAMMA
@@ -130,14 +126,13 @@ class ArtificialNodeInserter:
             self._add_artificial_edges(node1, node2, lower, upper, F, U)
             self._remove_and_replace_edge(u, v, node1, node2, lower, upper, cost)
 
-    def write_to_dimacs_file(self, tsg_path=None):
+    def write_to_dimacs_file(self, U, tsg_path=None):
         if tsg_path is None:
             tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
         else:
             tsg_path = Path(tsg_path).resolve()
     
         F = self.pipeline.max_flow_value
-        U = self.ask_upper_bound()
         supply = F - U
 
         n_lines_pos = []
@@ -266,4 +261,4 @@ class ArtificialNodeInserter:
         self.add_exit_edge_vs_to_vt(U, gamma)
         V = self.collect_omega_in_edges()
         self.insert_artificial_nodes_and_edges(V, U)
-        self.write_to_dimacs_file()
+        self.write_to_dimacs_file(U)
