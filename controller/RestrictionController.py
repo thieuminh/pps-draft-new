@@ -79,5 +79,5 @@ class RestrictionController:
             ArtificialNodeInserter(self.graph_processor).run(U, gamma)
         else:
             inserter = ArtificialNodeInserter(self.graph_processor)
-            inserter.write_to_dimacs_file_from_tsg_2()
+            inserter.write_to_dimacs_file_from_tsg()
             print("Không cần chèn node/cung ảo vì F ≤ U.")

@@ -58,6 +58,7 @@ while(config.count < 2*3):#*12 and config.numOfAGVs <= 10):
     graph_processor.init_nodes_n_edges() 
     events = sorted(events, key=lambda x: x.start_time)
     Event.setValue("allAGVs", allAGVs)
+    input("Nhấn Enter để tiếp tục...")
     
     
     def schedule_events(events):
