@@ -207,7 +207,7 @@ class ArtificialNodeInserter:
             tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
         else:
             tsg_path = Path(tsg_path).resolve()
-
+    
         F = self.pipeline.max_flow_value
         U = self.ask_upper_bound()
         supply = F - U
@@ -221,8 +221,8 @@ class ArtificialNodeInserter:
         for start in self.processor.started_nodes:
             n_lines_pos.append(f"n {start} 1\n")
         for target in self.processor.target_nodes:
-            n_lines_neg.append(f"n {target} -1\n") #target.id vào thì lại sai???
-
+            n_lines_neg.append(f"n {target.id} -1\n") #target.id vào thì lại sai???
+        
         n_lines_pos.append(f"n {vs_id} {supply}\n")
         n_lines_neg.append(f"n {vt_id} {-supply}\n")
 
@@ -269,8 +269,6 @@ class ArtificialNodeInserter:
             f.write(p_line)
             for line in n_lines_pos:
                 f.write(line)
-            # for target in self.processor.target_nodes:
-            #     f.write(f"n {target.id} -1\n")
             for line in n_lines_neg:
                 f.write(line)
             # Ghi các cung Exceed/comment
@@ -290,7 +288,7 @@ class ArtificialNodeInserter:
                     f.write(f"a {u} {v} {low} {up} {cost}\n")
         print("-------------------------------------------------------------------------------------------------------")
         print(f"✅ File {tsg_path} đã được cập nhật lại với p, n (giữ nguyên các dòng n_lines), các cung (có Exceed nếu cần), các dòng khác và các cung ảo mới.")
-
+    
     def write_to_dimacs_file_from_tsg_2(self, tsg_path=None):
         if tsg_path is None:
             tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
@@ -303,7 +301,7 @@ class ArtificialNodeInserter:
         for start in self.processor.started_nodes:
             n_lines_pos.append(f"n {start} 1\n")
         for target in self.processor.target_nodes:
-            n_lines_neg.append(f"n {target} -1\n") #target.id vào thì lại sai???
+            n_lines_neg.append(f"n {target.id} -1\n") #target.id vào thì lại sai???
 
         # Tạo dòng p mới theo đúng số node và số cung hiện tại
         max_node_id = 0
