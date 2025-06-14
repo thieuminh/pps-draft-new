@@ -32,35 +32,35 @@ class MaxFlowPipeline:
         with open(omega_path, "w") as f:
             for edge in self.omega_edges:
                 f.write(f"a {edge.start_node.id} {edge.end_node.id} {edge.lower} {edge.upper} {edge.weight}\n")
-        print(f"✅ Đã ghi tập Omega vào file: {omega_path}")
+        # print(f"✅ Đã ghi tập Omega vào file: {omega_path}")
 
     def write_omega_in_file(self, nodes):
         omega_in_path = os.path.join(self.result_dir, "Omega(IN).txt")
         with open(omega_in_path, "w") as f_in:
             for node in sorted(nodes, key=lambda n: n.id):
                 f_in.write(f"{node.id}\n")
-        print(f"✅ Đã ghi Omega(IN).txt vào: {omega_in_path}")
+        # print(f"✅ Đã ghi Omega(IN).txt vào: {omega_in_path}")
 
     def write_omega_out_file(self, nodes):
         omega_out_path = os.path.join(self.result_dir, "Omega(OUT).txt")
         with open(omega_out_path, "w") as f_out:
             for node in sorted(nodes, key=lambda n: n.id):
                 f_out.write(f"{node.id}\n")
-        print(f"✅ Đã ghi Omega(OUT).txt vào: {omega_out_path}")
+        # print(f"✅ Đã ghi Omega(OUT).txt vào: {omega_out_path}")
 
     def write_omega_in_caps_file(self, caps):
         omega_in_path = os.path.join(self.result_dir, "Omega(IN).txt")
         with open(omega_in_path, "w") as f:
             for node in sorted(caps, key=lambda n: n.id):
                 f.write(f"{node.id} {caps[node]}\n")
-        print(f"✅ Đã ghi Omega(IN).txt (có capacity) vào: {omega_in_path}")
+        # print(f"✅ Đã ghi Omega(IN).txt (có capacity) vào: {omega_in_path}")
 
     def write_omega_out_caps_file(self, caps):
         omega_out_path = os.path.join(self.result_dir, "Omega(OUT).txt")
         with open(omega_out_path, "w") as f:
             for node in sorted(caps, key=lambda n: n.id):
                 f.write(f"{node.id} {caps[node]}\n")
-        print(f"✅ Đã ghi Omega(OUT).txt (có capacity) vào: {omega_out_path}")
+        # print(f"✅ Đã ghi Omega(OUT).txt (có capacity) vào: {omega_out_path}")
 
     # --- Các hàm phụ trợ ---
     def is_artificial_node(self, node):
