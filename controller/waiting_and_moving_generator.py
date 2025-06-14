@@ -124,23 +124,27 @@ class WaitingAndMovingEdgesGenerator (TimeWindowGenerator):
         #self.ts_edges.extend(e for e in new_a if e not in self.ts_edges)
         self.create_set_of_edges(new_a)
         
-    def write_to_file(self):
+    def write_to_file(self, supply=None, vs_id=None, vt_id=None):
         M = max(target.id for target in self.get_targets())
         with open('TSG.txt', 'w') as file:
-            #file.write(f"p min {M} {len(self.ts_edges)}\n")
             file.write(f"p min {M} {len(self.ts_edges)}\n")
+            # Ghi started_nodes
             for start in self.started_nodes:
-                file.write(f"n {start} 1\n")
+                if supply is not None and vs_id is not None and start == vs_id:
+                    file.write(f"n {start} {supply}\n")
+                else:
+                    file.write(f"n {start} 1\n")
+            # Ghi target_nodes
             for target in self.get_targets():
                 target_id = target.id
-                file.write(f"n {target_id} -1\n")
-            #no longer use self.tsedges:
-            #for edge in self.ts_edges:
+                if supply is not None and vt_id is not None and target_id == vt_id:
+                    file.write(f"n {target_id} {-supply}\n")
+                else:
+                    file.write(f"n {target_id} -1\n")
             for edge in self.ts_edges:
                 if (edge is not None):   
                     if(edge.weight == self.H*self.H):
                         if((edge.start_node.id // self.M - (1 if edge.start_node.id % self.M == 0 else 0)) >= self.H):
-                            #print(f"c Exceed {edge.weight} {edge.weight // self.M}\na {edge.start_node.id} {edge.end_node.id} {edge.lower} {edge.upper} {edge.weight}\n")
                             file.write(f"c Exceed {edge.weight} {edge.weight // self.M} as {edge.start_node.id} // {self.M} - (1 if {edge.start_node.id} % {self.M} == 0 else 0)\na {edge.start_node.id} {edge.end_node.id} {edge.lower} {edge.upper} {edge.weight}\n")
                     else:
                         file.write(f"a {edge.start_node.id} {edge.end_node.id} {edge.lower} {edge.upper} {edge.weight}\n")

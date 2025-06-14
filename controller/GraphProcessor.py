@@ -469,6 +469,16 @@ class GraphProcessor(KickOffGenerator):
         F = self.restriction_controller.compute_maxflow(use_config_data)
         self.restriction_controller.insert_artificial_objects(F, use_config_data=use_config_data)
 
+        # Ghi file TSG.txt
+        U = config.artificial_upper_bound
+        if  F > U:
+            supply = F - U
+            vs_id = next((n.id for n in self.graph.nodes.values() if getattr(n, "label", "") == "vS"), None)
+            vt_id = next((n.id for n in self.graph.nodes.values() if getattr(n, "label", "") == "vT"), None)
+            self.write_to_file(supply=supply, vs_id=vs_id, vt_id=vt_id)
+        else:
+            self.write_to_file()
+
     def get_edges_with_cost(self):
         """Trả về một từ điển các cạnh với chi phí."""
         return {(int(edge[1]), int(edge[2])): int(edge[5])

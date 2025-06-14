@@ -77,6 +77,3 @@ class RestrictionController:
             if self.graph_processor.graph is None:
                 self.graph_processor.graph = Graph(self.graph_processor)
             ArtificialNodeInserter(self.graph_processor).run(U, gamma)
-        else:
-            inserter = ArtificialNodeInserter(self.graph_processor)
-            inserter.write_to_dimacs_file_from_tsg()

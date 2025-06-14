@@ -77,62 +77,21 @@ class ArtificialNodeInserter:
         self.processor.ts_edges.extend(edges_replacement)
         self.edges_added.extend(edges_replacement)
     
-    def generate_p_line(self):
-        max_node_id = 0
-        num_edges = 0
-        for edge in self.processor.ts_edges:
-            if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
-                max_node_id = max(max_node_id, edge.start_node.id, edge.end_node.id)
-                num_edges += 1
-        return f"p min {max_node_id} {num_edges}\n"
-    
-    def generate_node_lines(self, supply=None):
-        pos_lines = [f"n {s} 1\n" for s in self.processor.started_nodes]
-        neg_lines = [f"n {t.id} -1\n" for t in self.processor.target_nodes]
-
-        if supply is not None:
-            pos_lines.append(f"n {self.vS.id} {supply}\n")
-            neg_lines.append(f"n {self.vT.id} {-supply}\n")
-
-        return pos_lines, neg_lines
-
-    def write_edges(self, file_handle):
-        H = getattr(self.processor, 'H', None)
-        M = getattr(self.processor, 'M', None)
-        for edge in self.processor.ts_edges:
-            if edge is not None and hasattr(edge, 'start_node') and hasattr(edge, 'end_node'):
-                u = edge.start_node.id
-                v = edge.end_node.id
-                low = getattr(edge, 'lower', self.DEFAULT_LOWER)
-                up = getattr(edge, 'upper', self.DEFAULT_UPPER)
-                cost = getattr(edge, 'weight', 1)
-                if H is not None and M is not None and cost == H * H:
-                    time = u // M - (1 if u % M == 0 else 0)
-                    if time >= H:
-                        file_handle.write(f"c Exceed {cost} {cost // M} as {u} // {M} - (1 if {u} % {M} == 0 else 0)\n")
-                file_handle.write(f"a {u} {v} {low} {up} {cost}\n")
-
-    def write_to_dimacs(self, tsg_path=None, U=None):
-        if tsg_path is None:
-            tsg_path = (Path(__file__).parent.parent / "TSG.txt").resolve()
-        else:
-            tsg_path = Path(tsg_path).resolve()
-
-        supply = self.pipeline.max_flow_value - U if U is not None else None
-        pos_lines, neg_lines = self.generate_node_lines(supply)
-        p_line = self.generate_p_line()
-
-        with open(tsg_path, "w", encoding="utf-8") as f:
-            f.write(p_line)
-            for line in pos_lines + neg_lines:
-                f.write(line)
-            self.write_edges(f)
     
     # ==== Các hàm được gọi trong run() ====
     def add_artificial_source_sink_nodes(self):
         self.processor.ts_nodes.extend([self.vS, self.vT])
         self.processor.graph.nodes[self.vS.id] = self.vS
         self.processor.graph.nodes[self.vT.id] = self.vT
+
+        # Thêm vS vào started_nodes nếu chưa có
+        if hasattr(self.processor, "started_nodes"):
+            if self.vS.id not in self.processor.started_nodes:
+                self.processor.started_nodes.append(self.vS.id)
+        # Thêm vT vào target_nodes nếu chưa có
+        if hasattr(self.processor, "target_nodes"):
+            if self.vT not in self.processor.target_nodes:
+                self.processor.target_nodes.append(self.vT)
 
     def ask_gamma(self):
         gamma_input = input("Nhập gamma (cost vS→vT, mặc định = 1230919231): ")
@@ -165,16 +124,9 @@ class ArtificialNodeInserter:
 
             self.add_artificial_edges(node1, node2, lower, upper, F, U)
             self.remove_and_replace_edge(u, v, node1, node2, lower, upper, cost)
-    
-    def write_to_dimacs_file(self, U, tsg_path=None):
-        self.write_to_dimacs(tsg_path=tsg_path, U=U)
-
-    def write_to_dimacs_file_from_tsg(self, tsg_path=None):
-        self.write_to_dimacs(tsg_path=tsg_path)
 
     def run(self, U, gamma):
         self.add_artificial_source_sink_nodes()
         self.add_exit_edge_vs_to_vt(U, gamma)
         V = self.collect_omega_in_edges()
         self.insert_artificial_nodes_and_edges(V, U)
-        self.write_to_dimacs_file(U)
