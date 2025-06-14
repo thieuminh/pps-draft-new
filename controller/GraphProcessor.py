@@ -460,15 +460,14 @@ class GraphProcessor(KickOffGenerator):
         return existing_edges
 
 
-    def process_restrictions(self):
-        self.remove_artificial_nodes_and_edges()
+    def process_restrictions(self, use_config_data=False):
         """Xử lý các hạn chế trong đồ thị."""
+        self.remove_artificial_nodes_and_edges()
         if self.restriction_controller is None:
             self.restriction_controller = RestrictionController(self)
-
         self.insert_halting_edges()
-        F = self.restriction_controller.compute_maxflow()
-        self.restriction_controller.insert_artificial_objects(F)
+        F = self.restriction_controller.compute_maxflow(use_config_data)
+        self.restriction_controller.insert_artificial_objects(F, use_config_data=use_config_data)
 
     def get_edges_with_cost(self):
         """Trả về một từ điển các cạnh với chi phí."""
@@ -514,7 +513,7 @@ class GraphProcessor(KickOffGenerator):
         self.restrictions = []
         self.ur = 3
         #pdb.set_trace()
-        self.process_restrictions()
+        self.process_restrictions(use_config_data)
     
     def remove_edge_by_id(self, u, v):
         """Xóa cạnh từ ts_edges dựa trên id hai đầu mút."""

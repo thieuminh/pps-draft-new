@@ -60,18 +60,18 @@ class RestrictionController:
                     temp2 = self.graph_processor.find_node(a_t).create_edge(end_node, self.M, self.graph_processor.d, e2)
                     adj_edges[a_t].append(end_node.id, temp2)
 
-    def compute_maxflow(self):
+    def compute_maxflow(self, use_config_data=False):
         """Chạy MaxFlow và trả về giá trị F."""
         self.graph_processor.pipeline = MaxFlowPipeline(self.graph_processor)
-        F = self.graph_processor.pipeline.run_all(get_maxflow_conditions())
+        F = self.graph_processor.pipeline.run_all(get_maxflow_conditions(use_config_data))
         return F
 
-    def insert_artificial_objects(self, F, U=None, gamma=None):
+    def insert_artificial_objects(self, F, U=None, gamma=None, use_config_data=False):
         """Chèn node/cung ảo nếu cần thiết."""
         if U is None:
-            U = get_artificial_upper_bound()
+            U = get_artificial_upper_bound(use_config_data)
         if gamma is None:
-            gamma = get_artificial_gamma()
+            gamma = get_artificial_gamma(use_config_data)
         print(f"✅ Max Flow F = {F}, U = {U}")
         if F > U:
             if self.graph_processor.graph is None:

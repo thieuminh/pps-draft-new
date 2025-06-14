@@ -21,6 +21,9 @@ test_automation = 0
 draw = 0
 M = 0
 print_output = False
+maxflow_conditions = None
+artificial_upper_bound = None
+artificial_gamma = None
 
 class bcolors:
     HEADER = '\033[95m'
