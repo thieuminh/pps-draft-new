@@ -14,9 +14,12 @@ from datetime import datetime
 import os
 import platform
 
-from model.hallway_simulator_module.HallwaySimulator import DirectoryManager
-dm = DirectoryManager()
-dm.full_cleanup()
+if platform.system() != "Windows":
+    from model.hallway_simulator_module.HallwaySimulator import DirectoryManager
+    dm = DirectoryManager()
+    dm.full_cleanup()
+else:
+    dm = None 
 
 allAGVs = set()
 TASKS = set()

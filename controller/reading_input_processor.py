@@ -22,7 +22,8 @@ class ReadingInputProcessor(StartNodeGenerator):
 
         #config.count = 0  # reset bộ đếm
         self.dm = _dm
-        self.dm.full_cleanup()  # dọn sạch ban đầu
+        if self.dm is not None:
+            self.dm.full_cleanup()  # dọn sạch ban đầu
         self.processed_numbers = []
         self._space_edges = []
         self._draw = 0
@@ -180,7 +181,8 @@ class ReadingInputProcessor(StartNodeGenerator):
             print("Start using NetworkX at:", config.count)
     
         # Cleanup tạm
-        self.dm.half_cleanup()
+        if self.dm is not None:
+            self.dm.half_cleanup()
         #time.sleep(1)
     
         return True  # báo hiệu tiếp tục vòng lặp
@@ -354,5 +356,5 @@ class ReadingInputProcessor(StartNodeGenerator):
         else:
             num_of_agvs = self.generate_time_windows()
         return num_of_agvs
-                
-    
+
+
