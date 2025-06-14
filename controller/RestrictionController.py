@@ -73,7 +73,7 @@ class RestrictionController:
         if gamma is None:
             gamma = get_artificial_gamma(use_config_data)
         print(f"✅ Max Flow F = {F}, U = {U}")
-        if F > U:
+        if F > U and F != 0:
             if self.graph_processor.graph is None:
                 self.graph_processor.graph = Graph(self.graph_processor)
             ArtificialNodeInserter(self.graph_processor).run(U, gamma)

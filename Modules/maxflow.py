@@ -190,5 +190,8 @@ class MaxFlowPipeline:
         self.M = self.graph_processor.M
         self.find_omega(conditions)
         self.create_in_out()
+        if not self.omega_in:  # Nếu omega_in rỗng
+            self.max_flow_value = 0
+            return 0
         self.add_capacities()
         return self.compute_max_flow()

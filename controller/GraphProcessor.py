@@ -472,10 +472,9 @@ class GraphProcessor(KickOffGenerator):
         # Ghi file TSG.txt
         U = config.artificial_upper_bound
         if  F > U:
-            supply = F - U
             vs_id = next((n.id for n in self.graph.nodes.values() if getattr(n, "label", "") == "vS"), None)
             vt_id = next((n.id for n in self.graph.nodes.values() if getattr(n, "label", "") == "vT"), None)
-            self.write_to_file(supply=supply, vs_id=vs_id, vt_id=vt_id)
+            self.write_to_file(supply=U, vs_id=vs_id, vt_id=vt_id)
         else:
             self.write_to_file()
 
